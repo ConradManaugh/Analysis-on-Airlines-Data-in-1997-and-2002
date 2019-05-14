@@ -1,0 +1,647 @@
+---
+title: "Conrad_Stat480_Group_Appendix"
+author: "Conrad Manaugh"
+date: "4/26/2019"
+output: html_document
+---
+
+Section A is a data loading section of the appendix.
+```{r Section A: load data}
+library(readr)
+
+#The data for flights on year 1997, many variables removed for irrelevance 
+X1997 <- read_csv("Stat480/Group Project/1997.csv", 
+col_types = cols(CancellationCode = col_skip(), 
+Cancelled = col_skip(), CarrierDelay = col_skip(), 
+Diverted = col_skip(), LateAircraftDelay = col_skip(), 
+NASDelay = col_skip(), SecurityDelay = col_skip(), 
+TaxiIn = col_skip(), TaxiOut = col_skip(), 
+WeatherDelay = col_skip()))
+
+#The data for flights on year 2002
+X2002 <- read_csv("Stat480/Group Project/2002.csv", 
+col_types = cols(CancellationCode = col_skip(), 
+Cancelled = col_skip(), CarrierDelay = col_skip(), 
+Diverted = col_skip(), LateAircraftDelay = col_skip(), 
+NASDelay = col_skip(), SecurityDelay = col_skip(), 
+TaxiIn = col_skip(), TaxiOut = col_skip(), 
+WeatherDelay = col_skip()))
+
+#The information about airports
+airports <- read_csv("Stat480/Group Project/airports.csv")
+```
+
+This section creates a matrix for the flow of flights between airports, and the flow of total delay between airports. Dividing the two gives delay per flight flow for airports.
+```{r Section B: Create matrix}
+#The unique airports a plane could originate from, and arrive at
+Origins1997=unique(X1997$Origin)
+Dests1997=unique(X1997$Dest)
+
+#Same as above but for year 2002
+Origins2002=unique(X2002$Origin)
+Dests2002=unique(X2002$Dest)
+
+#The relevant airports in the two years
+Ports1997=sort(unique(c(Origins1997,Dests1997)))
+Ports2002=sort(unique(c(Origins2002,Dests2002)))
+
+#The Row's are nodes where the planes leave, the collumns are the nodes where the planes arrive
+FlowMat97=matrix(data=0,nrow=length(Ports1997),ncol=length(Ports1997),dimnames = list(Ports1997,Ports1997))
+FlowMat02=matrix(data=0,nrow=length(Ports2002),ncol=length(Ports2002),dimnames = list(Ports2002,Ports2002))
+DelayMat97=matrix(data=0,nrow=length(Ports1997),ncol=length(Ports1997),dimnames = list(Ports1997,Ports1997))
+DelayMat02=matrix(data=0,nrow=length(Ports2002),ncol=length(Ports2002),dimnames = list(Ports2002,Ports2002))
+length(Ports2002)
+
+#For each flight I count the flight in the origin departure Flow Matrix, and I count its delay in the Delay matrix. NAs are not counted.
+for(i in 1:nrow(X1997)){
+  
+if(!is.na(X1997$DepDelay[i])){  
+FlowMat97[X1997$Origin[i],X1997$Dest[i]]=FlowMat97[X1997$Origin[i],X1997$Dest[i]]+1
+
+
+DelayMat97[X1997$Origin[i],X1997$Dest[i]]=DelayMat97[X1997$Origin[i],X1997$Dest[i]]+X1997$DepDelay[i]
+}
+
+  #I put them in the same loop, but since 1997 has more rows this if statement is needed
+if(i<=nrow(X2002)){
+  if(!is.na(X2002$DepDelay[i])){
+FlowMat02[X2002$Origin[i],X2002$Dest[i]]=FlowMat02[X2002$Origin[i],X2002$Dest[i]]+1
+
+
+DelayMat02[X2002$Origin[i],X2002$Dest[i]]=DelayMat02[X2002$Origin[i],X2002$Dest[i]]+X2002$DepDelay[i]
+}
+}
+}
+#Due to alphabetical sorting the Ports1997 and airpots1997 match observations
+#Ports is just iata basically, but only the useful ones.
+airports97=airports[airports$iata %in% Ports1997,]
+airports02=airports[airports$iata %in% Ports2002,]
+
+#Changing the names here so I do not need to run the long code that creates the Flow Mat
+rownames(FlowMat02)=airports02$airport
+rownames(FlowMat97)=airports97$airport
+colnames(FlowMat02)=airports02$airport
+colnames(FlowMat97)=airports97$airport
+rownames(DelayMat02)=airports02$airport
+rownames(DelayMat97)=airports97$airport
+colnames(DelayMat02)=airports02$airport
+colnames(DelayMat97)=airports97$airport
+
+#A matrix containing the Delay's per flight, any Nan's from dividing by zero become zero
+#These occur when flights have no travel between them, as I will not include these flights
+#They may as well be zero for now.
+DelayperFlight02=DelayMat02/FlowMat02
+DelayperFlight02[is.nan(DelayperFlight02)]=0
+DelayperFlight97=DelayMat97/FlowMat97
+DelayperFlight97[is.nan(DelayperFlight97)]=0
+```
+
+This section contains summary statistics that briefly summarize how delay and flight patters effect each airport
+```{r Section C: Airport summaries}
+#The number of ports in 1997 and 2002
+nrow(airports02)
+nrow(airports97)
+
+#The total departures from each aiport for each airport, daily average, for 1997
+Tot_deps_per_airport97=apply(FlowMat97,1,sum)/365
+head(sort(Tot_deps_per_airport97),4)#Airports with fewest daily flights
+tail(sort(Tot_deps_per_airport97),4)#Airports with most daily flights
+mean(Tot_deps_per_airport97)#Number of daily flights for the average airport
+
+#The total departures from each aiport for each airport, daily average, for 2002
+Tot_deps_per_airport02=apply(FlowMat02,1,sum)/365
+head(sort(Tot_deps_per_airport02),4)#Airports with fewest daily flights
+tail(sort(Tot_deps_per_airport02),4)#Airports with most daily flights
+mean(Tot_deps_per_airport02)#Number of daily flights for the average airport
+
+#Airports with the highest and lowest average delay in 2002
+mean_dep_delay_per_airport02=apply(DelayperFlight02,1,mean)
+head((sort(mean_dep_delay_per_airport02)),4)
+tail((sort(mean_dep_delay_per_airport02)),4)
+
+#Airports with the highest and lowest average delay in 1997
+mean_dep_delay_per_airport97=apply(DelayperFlight97,1,mean)
+head((sort(mean_dep_delay_per_airport97)),4)
+tail((sort(mean_dep_delay_per_airport97)),4)
+
+#Average delay in 1997 and 2002
+mean(mean_dep_delay_per_airport97)
+mean(mean_dep_delay_per_airport02)
+```
+This section will merge with C and show boxplots without values close to zero.
+```{r Section D: Boxplots}
+clean_deps02=round(Tot_deps_per_airport02)#Round 
+
+
+clean_deps02=cbind(clean_deps02,2002)
+
+clean_deps97=round(Tot_deps_per_airport97)#Round 
+
+
+clean_deps97=cbind(clean_deps97,1997)
+clean_deps=rbind(clean_deps97,clean_deps02)
+colnames(clean_deps)=c("Daily_Departing_Flights","Year")
+clean_deps=data.frame(clean_deps)
+clean_deps$Year=as.factor(clean_deps$Year)
+
+C.2.Dep=ggplot(clean_deps, aes(x=Year, y=Daily_Departing_Flights)) + 
+  geom_boxplot()+ggtitle("Distribution of Daily Departing Flights by Conrad Manaugh")
+C.2.Dep
+
+
+clean_dels02=round(mean_dep_delay_per_airport02,2)#Round 
+
+clean_dels02=clean_dels02[clean_dels02>0.4]
+clean_dels02=cbind(clean_dels02,2002)
+
+clean_dels97=round(mean_dep_delay_per_airport97,2)#Round 
+
+clean_dels97=clean_dels97[clean_dels97>0.4]
+clean_dels97=cbind(clean_dels97,1997)
+clean_dels=rbind(clean_dels02,clean_dels97)
+colnames(clean_dels)=c("Daily_Average_Flight_Delay","Year")
+clean_dels=data.frame(clean_dels)
+clean_dels$Year=as.factor(clean_dels$Year)
+
+C.202.Del=ggplot(clean_dels, aes(x=Year, y=Daily_Average_Flight_Delay)) + 
+  geom_boxplot()+ggtitle("Distribution of Daily Flight Delay by Conrad Manaugh",sub="Given Flights have some delay")
+C.202.Del
+
+```
+
+This section has interactive histograms for analyzing the density of daily flights.
+```{r Section E: Airport daily flight hists, message=FALSE, warning=FALSE}
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+# Library
+library(tidyverse)
+library(plotly)
+
+hist02=data_frame(Tot_deps_per_airport02)
+rownames(hist02)=names(sort(Tot_deps_per_airport02))
+
+
+don = hist02 %>% 
+  arrange(Tot_deps_per_airport02) %>% 
+  mutate(var_rounded = (Tot_deps_per_airport02+1) - ( (Tot_deps_per_airport02+1) %% 10 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("Aiport Name: ", rownames(hist02), "\n", "Daily Departure for 2002: ", Tot_deps_per_airport02, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Daily Departures') +
+  ylab('# of airports') +
+  ggtitle("Daily Airport Departures for 2002 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DepHist02=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DepHist02), "DepHist02.html")
+DepHist02
+
+
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+# Library
+
+
+hist97=data_frame(Tot_deps_per_airport97,Tot_ariv_per_airport97)
+rownames(hist97)=names(sort(Tot_deps_per_airport97))
+
+
+don = hist97 %>% 
+  arrange(Tot_deps_per_airport97) %>% 
+  mutate(var_rounded = (Tot_deps_per_airport97+1) - ( (Tot_deps_per_airport97+1) %% 10 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("Aiport Name: ", rownames(hist97), "\n", "Total Departure for 1997: ", Tot_deps_per_airport97, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Total Departures') +
+  ylab('# of airports') +
+  ggtitle("Airport Departures for 1997 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DepHist97=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DepHist97), "DepHist97.html")
+DepHist97
+
+```
+This section has interactive histograms for analyzing the density of average airport delay
+```{r Section F: Average airport depdelay hists, message=FALSE, warning=FALSE}
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+
+delhist02=data_frame(mean_dep_delay_per_airport02)
+rownames(delhist02)=names(sort(mean_dep_delay_per_airport02))
+
+
+don = delhist02 %>% 
+  arrange(mean_dep_delay_per_airport02) %>% 
+  mutate(var_rounded = (mean_dep_delay_per_airport02+1) - ( (mean_dep_delay_per_airport02+1) %% .05 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("Aiport Name: ", rownames(delhist02), "\n", "Average Delay for 2002: ", mean_dep_delay_per_airport02, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Average Delay') +
+  ylab('# of airports') +
+  ggtitle("Average Airport Delay for 2002 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DelHist02=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DelHist02), "DelHist02.html")
+DelHist02
+
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+
+delhist97=data_frame(mean_dep_delay_per_airport97)
+rownames(delhist97)=names(sort(mean_dep_delay_per_airport97))
+
+
+don = delhist97 %>% 
+  arrange(mean_dep_delay_per_airport97) %>% 
+  mutate(var_rounded = (mean_dep_delay_per_airport97+1) - ( (mean_dep_delay_per_airport97+1) %% .05 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("Aiport Name: ", rownames(delhist97), "\n", "Average Delay for 1997: ", mean_dep_delay_per_airport97, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Average Delay') +
+  ylab('# of airports') +
+  ggtitle("Average Airport Delay for 1997 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DelHist97=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DelHist97), "DelHist97.html")
+DelHist97
+
+```
+This section creates a matrix for the flow of flights between states, and the flow of total delay between states Dividing the two gives delay per flight flow for states.
+```{r Section G: Create state matrix, message=FALSE, warning=FALSE}
+#Use the relevant airports
+airports97=airports[airports$iata %in% Ports1997,]
+airports02=airports[airports$iata %in% Ports2002,]
+states97=unique(airports97$state)
+states02=unique(airports02$state)
+
+StateMat97=matrix(data=0,nrow=length(states97),ncol=length(states97),dimnames = list(states97,states97))
+StateMat02=matrix(data=0,nrow=length(states02),ncol=length(states02),dimnames = list(states02,states02))
+
+StateDelMat97=matrix(data=0,nrow=length(states97),ncol=length(states97),dimnames = list(states97,states97))
+StateDelMat02=matrix(data=0,nrow=length(states02),ncol=length(states02),dimnames = list(states02,states02))
+
+#Make the flow matrix for states, and the delay matrix for states
+for(rowport in rownames(FlowMat97)){
+  for(colport in colnames(FlowMat97)){
+  origin_state=airports97[which(rowport==airports97$airport),]$state
+  dest_state=airports97[which(colport==airports97$airport),]$state
+  StateMat97[origin_state,dest_state]=StateMat97[origin_state,dest_state]+FlowMat97[rowport,colport]
+  StateDelMat97[origin_state,dest_state]=StateDelMat97[origin_state,dest_state]+DelayMat97[rowport,colport]
+}
+}
+
+for(rowport in rownames(FlowMat02)){
+  for(colport in colnames(FlowMat02)){
+  origin_state=airports02[which(rowport==airports02$airport),]$state
+  dest_state=airports02[which(colport==airports02$airport),]$state
+  StateMat02[origin_state,dest_state]=StateMat02[origin_state,dest_state]+FlowMat02[rowport,colport]
+  StateDelMat02[origin_state,dest_state]=StateDelMat02[origin_state,dest_state]+DelayMat02[rowport,colport]
+}
+}
+
+
+DelayperState02=StateDelMat02/StateMat02
+DelayperState02[is.nan(DelayperState02)]=0
+DelayperState97=StateDelMat97/StateMat97
+DelayperState97[is.nan(DelayperState97)]=0
+
+```
+This section contains summary statistics for states.
+```{r Section H: State summary}
+#Number of states in 1997 and 2002
+length(states97)
+length(states02)
+sum(states97=="PR")#Purto Rico
+sum(states97=="GU")#Guam
+sum(states02=="N/A")#NA
+
+
+
+
+#Number of Departures per State, from states with most and least departures for 2002
+tot_state_dep02=apply(StateMat02,1,sum)/365
+tot_state_dep97=apply(StateMat97,1,sum)/365
+
+#Number of Departures per State, from states with most and least departures for 1997
+head(sort(tot_state_dep02),5)
+tail(sort(tot_state_dep02),4)
+
+head(sort(tot_state_dep97),4)
+tail(sort(tot_state_dep97),4)
+
+mean_state_delay02=apply(DelayperState02,1,mean)
+mean_state_delay97=apply(DelayperState97,1,mean)
+#States with the highest and lowest departure delay in 1997
+head(sort(mean_state_delay97),4)
+tail(sort(mean_state_delay97),4)
+
+
+#States with the highest and lowest departure delay in 2002
+head(sort(mean_state_delay02),5)
+tail(sort(mean_state_delay02),4)
+
+
+
+
+```
+
+This section will contain interactive histograms on daily departing flights for states
+```{r Section I: Daily Departing State hists, message=FALSE, warning=FALSE}
+
+
+
+histate02=data.frame(tot_state_dep02)
+rownames(histate02)=names(sort(tot_state_dep02))
+
+
+don = histate02 %>% 
+  arrange(tot_state_dep02) %>% 
+  mutate(var_rounded = (tot_state_dep02+1) - ( (tot_state_dep02+1) %% 75 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("State Code: ", rownames(histate02), "\n", "Daily Departure for 2002: ", tot_state_dep02, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Total Departures') +
+  ylab('# of states') +
+  ggtitle("State Departures for 2002 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DepHistate02=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DepHistate02), "DepHistate02.html")
+DepHistate02
+
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+
+histate97=data.frame(tot_state_dep97)
+rownames(histate97)=names(sort(tot_state_dep97))
+
+
+don = histate97 %>% 
+  arrange(tot_state_dep97) %>% 
+  mutate(var_rounded = (tot_state_dep97+1) - ( (tot_state_dep97+1) %% 75 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("State Code: ", rownames(histate97), "\n", "Daily Departure for 1997: ", tot_state_dep97, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Total Departures') +
+  ylab('# of states') +
+  ggtitle("State Departures for 1997 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DepHistate97=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DepHistate97), "DepHistate97.html")
+DepHistate97
+
+```
+This section has interactive histrograms for average stat delay.
+```{r Section J: Average state depdelay hists, message=FALSE, warning=FALSE}
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+
+delstate02=data_frame(mean_state_delay02)
+rownames(delstate02)=names(sort(mean_state_delay02))
+
+
+don = delstate02 %>% 
+  arrange(mean_state_delay02) %>% 
+  mutate(var_rounded = (mean_state_delay02+1) - ( (mean_state_delay02+1) %% .75 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("State Code: ", rownames(delstate02), "\n", "Average Delay for 2002: ", mean_state_delay02, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Average Delay') +
+  ylab('# of states') +
+  ggtitle("Average State Delay for 2002 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DelHistate02=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DelHistate02), "DelHistate02.html")
+DelHistate02
+
+#Adapted from https://www.r-graph-gallery.com/337-interactive-dotplot-histogram/
+
+delstate97=data_frame(mean_state_delay97)
+rownames(delstate97)=names(sort(mean_state_delay97))
+
+
+don = delstate97 %>% 
+  arrange(mean_state_delay97) %>% 
+  mutate(var_rounded = (mean_state_delay97+1) - ( (mean_state_delay97+1) %% .75 ) ) %>% # 
+  mutate(y=ave(var_rounded, var_rounded, FUN=seq_along)) 
+ 
+
+don=don %>% mutate(text=paste("State Code: ", rownames(delstate97), "\n", "Average Delay for 1997: ", mean_state_delay97, sep="" ))
+p=ggplot(don, aes(x=var_rounded, y=y) ) +
+  geom_point( aes(text=text), size=6, color="skyblue" ) +
+  xlab('Average Delay') +
+  ylab('# of states') +
+  ggtitle("Average State Delay for 1997 by Conrad Manaugh")+
+  theme_classic() +
+  theme(
+    legend.position="none",
+    axis.line.y = element_blank(),
+    axis.text=element_text(size=15)
+  )
+
+
+DelHistate97=ggplotly(p, tooltip="text")
+htmlwidgets::saveWidget(as.widget(DelHistate97), "DelHistate97.html")
+DelHistate97
+
+
+```
+This codechunk creats a reduced network matrix for better graphing, parameters can be set on top.
+```{r Section K: Reduce Airport Matrix}
+#Change initial values here
+#My initial values are chosen through trial and error to get a network with as many nodes as possible
+#Without being to cluttered.
+Min_Flights97=7000
+Min_Flights02=6000
+Min_avg_delay97=20
+Min_avg_delay02=17
+
+#If its over minflights we will present it graphically
+redFlowMat97=(Min_Flights97<FlowMat97)*FlowMat97
+redFlowMat02=(Min_Flights02<FlowMat02)*FlowMat02
+
+#If the minimum average delaysquared is larger then delayperflight squared then we make it zero
+#I squared just because negative delays exist
+redDelayMat97=((Min_avg_delay97^2)<(DelayperFlight97^2))*DelayperFlight97
+redDelayMat02=((Min_avg_delay02^2)<(DelayperFlight02^2))*DelayperFlight02
+
+#We will keep the rows and cols that are not all zero's
+
+
+redFlowMat97=redFlowMat97[-which(apply(redFlowMat97,1,sum)==0),-which(apply(redFlowMat97,1,sum)==0)]
+redFlowMat02=redFlowMat02[-which(apply(redFlowMat02,1,sum)==0),-which(apply(redFlowMat02,1,sum)==0)]
+
+#The kept delays, they change as we remove them so we have to run a loop to get the network looking correctly
+while(sum(apply(redDelayMat97,1,sum)==0)!=0){
+redDelayMat97=redDelayMat97[-which(apply(redDelayMat97,1,sum)==0),-which(apply(redDelayMat97,1,sum)==0)]
+}
+while(sum(apply(redDelayMat02,1,sum)==0)!=0){
+redDelayMat02=redDelayMat02[-which(apply(redDelayMat02,1,sum)==0),-which(apply(redDelayMat02,1,sum)==0)]
+}
+```
+
+This section does like section j, but with the state matrix instead.
+```{r Section L: Reduce State Matrix}
+#Change initial values here
+#My initial values are chosen through trial and error to get a network with as many nodes as possible
+#Without being to cluttered.
+Minstate_Flights97=7800
+Minstate_Flights02=8500
+Minstate_avg_delay97=15
+Minstate_avg_delay02=11
+
+#Have to set diagnols to zero
+redStateMat97=StateMat97
+diag(redStateMat97)=0
+redStateMat97=(Minstate_Flights97<StateMat97)*redStateMat97
+redStateMat02=StateMat02
+diag(redStateMat02)=0
+redStateMat02=(Minstate_Flights02<StateMat02)*redStateMat02
+
+
+
+redDelaySt97=DelayperState97
+diag(redDelaySt97)=0
+redDelaySt02=DelayperState02
+diag(redDelaySt02)=0
+redDelaySt97=((Minstate_avg_delay97^2)<(DelayperState97^2))*redDelaySt97
+redDelaySt02=((Minstate_avg_delay02^2)<(DelayperState02^2))*redDelaySt02
+
+
+
+redStateMat97=redStateMat97[-which(apply(redStateMat97,1,sum)==0),-which(apply(redStateMat97,1,sum)==0)]
+redStateMat02=redStateMat02[-which(apply(redStateMat02,1,sum)==0),-which(apply(redStateMat02,1,sum)==0)]
+
+while(sum(apply(redDelaySt97,1,sum)==0)!=0){
+redDelaySt97=redDelaySt97[-which(apply(redDelaySt97,1,sum)==0),-which(apply(redDelaySt97,1,sum)==0)]
+}
+while(sum(apply(redDelaySt02,1,sum)==0)!=0){
+redDelaySt02=redDelaySt02[-which(apply(redDelaySt02,1,sum)==0),-which(apply(redDelaySt02,1,sum)==0)]
+}
+
+```
+
+```{r Section M: State Networks}
+library(plotrix)
+library(network)
+library(sna)
+library(ggplot2)
+library(GGally)
+library(autoimage)
+#devtools::install_github("briatte/ggnet")
+library(ggnet)
+#colors code adapted from https://stackoverflow.com/questions/27810944/set-color-scaling-of-a-vector-in-r
+colorfunc = colorRamp(c("blue","white","red"))
+
+StateFlow97<- network(redStateMat97)
+
+mycolors = rgb(colorfunc((apply(redStateMat97,1,sum)/max(apply(redStateMat97,1,sum)))), maxColorValue=255)
+StateFlow97 %v% "Tot_Flights" = mycolors
+StateFlow97 %v% "Tot_Arrives" =  apply(redStateMat97,2,sum)
+
+mycolors2 = rgb(colorfunc(sort(apply(redStateMat97,1,sum)/max(apply(redStateMat97,1,sum)))), maxColorValue=255)
+legend.scale(c(0,1), col = mycolors2, horizontal = T)
+
+ggnet2(StateFlow97,label = TRUE,label.size=2.5,color="Tot_Flights",alpha=.65,
+       size = "Tot_Flights",legend.position = "none")+
+  ggtitle(paste0("Flight routes in 1997 with more then ",Minstate_Flights97," flights. "),sub="Node Size is total arriving flights, Node color is total departing flights. by Conrad Manaugh")
+
+
+
+StateFlow02<- network(redStateMat02)
+
+
+
+
+mycolors = rgb(colorfunc((apply(redStateMat02,1,sum)/max(apply(redStateMat02,1,sum)))), maxColorValue=255)
+StateFlow02 %v% "Tot_Flights" = mycolors
+StateFlow02 %v% "Tot_Arrives" =  apply(redStateMat02,2,sum)
+
+
+mycolors2 = rgb(colorfunc(sort(apply(redStateMat02,1,sum)/max(apply(redStateMat02,1,sum)))), maxColorValue=255)
+legend.scale(c(0,1), col = mycolors2, horizontal = T)
+
+ggnet2(StateFlow02,label = TRUE,label.size=2.5,color="Tot_Flights",alpha=.65,
+       size = "Tot_Arrives",legend.position = "none")+
+  ggtitle(paste0("Flight routes in 2002 with more then ",Minstate_Flights02," flights."),sub="Node Size is total arriving flights, Node color is total departing flights. by Conrad Manaugh")
+```
+```{r Section M: Total Depating Flights vs Average Delay}
+#Create df for scatterplot
+Scatdf=data.frame(rbind(cbind(mean_dep_delay_per_airport97,Tot_deps_per_airport97,"Year"=1997),cbind(mean_dep_delay_per_airport02,Tot_deps_per_airport02,2002)))
+Scatdf$Year=as.factor(Scatdf$Year)
+ggplot()+geom_point(data=Scatdf,mapping=aes(x=mean_dep_delay_per_airport97
+,y=Tot_deps_per_airport97,col=Year,alpha=.7))+xlab("Average Departure Delay per Flight")+
+  ylab("Average Number of Daily Flights")+ggtitle("Impact of Aiport Daily Flights on Average Flight Delay")
+
+
+Scatdf2=data.frame(rbind(cbind(mean_state_delay02,tot_state_dep02,"Year"=2002),cbind(mean_state_delay97,tot_state_dep97,1997)))
+Scatdf2$Year=as.factor(Scatdf2$Year)
+ggplot()+geom_point(data=Scatdf2,mapping=aes(x=mean_state_delay02
+,y=tot_state_dep02,col=Year,alpha=.7))+xlab("Average Departure Delay per Flight")+
+  ylab("Average Number of Daily Flights")+ggtitle("Impact of State Daily Flights on Average Flight Delay")
+
+```
+
+

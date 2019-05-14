@@ -1,0 +1,412 @@
+-- All hive code
+
+# Download script
+wget https://raw.githubusercontent.com/coatless/stat490uiuc/master/airlines/airlines_data.sh
+chmod u+x airlines_data.sh
+
+# Run the script
+./airlines_data.sh <start year> <end year> 
+
+# Put the local file to the Hadoop file system
+hadoop fs -put ~/Stat480/final_proj/airline_2002.csv final_proj/.
+
+# Table 1997
+DROP TABLE IF EXISTS airline_1997;
+-- create table for year 1997
+CREATE TABLE airline_1997 (year STRING, month STRING, DayOfMonth STRING, DayOfWeek STRING,
+                           DepTime STRING, CRSDepTime STRING, ArrTime STRING, CRSArrTime STRING,
+                           UniqueCarrier STRING, FlightNum STRING, TailNum STRING, ActualElapsedTime INT,
+                           CRSElapsedTime INT, AirTime INT, AirDelay INT, DepDelay INT, origin STRING, dest STRING,
+                           distance INT, TaxiIn INT, TaxiOut INT, cancelled INT, CancellationCode STRING,
+                           diverted INT, CarrierDelay INT, WeatherDelay INT, NASDelay INT,
+                           SecurityDelay INT, LateAircraftDelay INT
+                           )
+ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ','
+    tblproperties("skip.header.line.count"="1");
+
+LOAD DATA INPATH '/user/chunlei2/final_proj/airline_1997.csv'
+OVERWRITE INTO TABLE airline_1997;
+
+
+#Table 2002, Tailnum has some non utf-8 chars
+DROP TABLE IF EXISTS airline_2002;
+-- create table for year 2002
+CREATE TABLE airline_2002 (year STRING, month STRING, DayOfMonth STRING, DayOfWeek STRING,
+                           DepTime STRING, CRSDepTime STRING, ArrTime STRING, CRSArrTime STRING,
+                           UniqueCarrier STRING, FlightNum STRING, TailNum STRING, ActualElapsedTime INT,
+                           CRSElapsedTime INT, AirTime INT, AirDelay INT, DepDelay INT, origin STRING, dest STRING,
+                           distance INT, TaxiIn INT, TaxiOut INT, cancelled INT, CancellationCode STRING,
+                           diverted INT, CarrierDelay INT, WeatherDelay INT, NASDelay INT,
+                           SecurityDelay INT, LateAircraftDelay INT
+                           )
+ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ','
+    tblproperties("skip.header.line.count"="1");
+  
+LOAD DATA INPATH '/user/chunlei2/final_proj/airline_2002.csv'
+OVERWRITE INTO TABLE airline_2002;
+
+ALTER TABLE airline_2002 SET SERDEPROPERTIES ('serialization.encoding'='ISO-8859-1');
+
+-- Summary Statistics for 1997
+SELECT AVG(DepDelay) AS average_departure_delay_1997,
+        MIN(DepDelay) AS min_departure_delay_1997,
+        MAX(DepDelay) AS max_departure_delay_1997,
+        stddev_pop(DepDelay) AS std_departure_delay_1997,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_1997,
+        COUNT(*) AS flight_amount_1997
+FROM airline_1997;
+
+-- Summary Statistics for 2002
+SELECT AVG(DepDelay) AS average_departure_delay_2002,
+        MIN(DepDelay) AS min_departure_delay_2002,
+        MAX(DepDelay) AS max_departure_delay_2002,
+        stddev_pop(DepDelay) AS std_departure_delay_2002,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_2002,
+        COUNT(*) AS flight_amount_2002
+FROM airline_2002;
+
+-- 1997
+average_departure_delay_1997	min_departure_delay_1997	max_departure_delay_1997	std_departure_delay_1997	50_percent_departure_delay_1997	flight_amount_1997	
+8.2355660810526	-918	1618	28.4711140880698	0	5411843	
+	
+-- 2002
+average_departure_delay_2002	min_departure_delay_2002	max_departure_delay_2002	std_departure_delay_2002	50_percent_departure_delay_2002	flight_amount_2002	
+5.532276225189274	-1370	2119	26.099043253444034	0	5271359	
+
+
+ -- 2002 has lower average departure delay than 1997.
+
+
+
+-- Summary Statistics for different months for 1997
+SELECT month, AVG(DepDelay) AS average_departure_delay_1997,
+        MIN(DepDelay) AS min_departure_delay_1997,
+        MAX(DepDelay) AS max_departure_delay_1997,
+        stddev_pop(DepDelay) AS std_departure_delay_1997,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_1997,
+        COUNT(*) AS flight_amount_1997
+FROM airline_1997
+GROUP BY month
+ORDER BY average_departure_delay_1997;
+
+-- In 1997, September has the lowest average departure delay, January has the highest
+month	average_departure_delay_1997	min_departure_delay_1997	max_departure_delay_1997	std_departure_delay_1997	50_percent_departure_delay_1997	flight_amount_1997	
+9	4.80074918507291	-62	1437	28.020496971296662	0	444431	
+5	6.055314010730193	-60	1435	24.991200510991174	0	457361	
+10	6.1610687293287345	-780	1437	27.8361199385076	0	459247	
+11	7.739829764458988	-78	1435	27.836698620428738	0	432725	
+4	7.983967835725967	-58	1435	28.29225827269193	0	447294	
+8	8.277228605862314	-67	1618	28.69516233060321	0	466608	
+3	8.486378769836447	-58	1435	27.171709362063552	0	460986	
+7	8.70388594939026	-918	1435	28.79832841698155	0	466771	
+2	9.321585188788408	-51	1435	28.386696551265725	0	415656	
+6	9.338228006631347	-60	1435	29.788624902923786	0	450737	
+12	10.200867877900738	-80	1435	30.686665004654603	0	450904	
+1	11.864794628339997	-45	1435	30.065191301606106	1	459123	
+	
+
+
+
+-- Summary Statistics for different months for 2002
+SELECT month, AVG(DepDelay) AS average_departure_delay_2002,
+        MIN(DepDelay) AS min_departure_delay_2002,
+        MAX(DepDelay) AS max_departure_delay_2002,
+        stddev_pop(DepDelay) AS std_departure_delay_2002,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_2002,
+        COUNT(*) AS flight_amount_2002
+FROM airline_2002
+GROUP BY month
+ORDER BY average_departure_delay_2002;
+
+-- In 2002, September has the lowest, but the December has the highest
+month	average_departure_delay_2002	min_departure_delay_2002	max_departure_delay_2002	std_departure_delay_2002	50_percent_departure_delay_2002	flight_amount_2002	
+9	2.241589453683939	-36	1296	21.232107489539274	-2	429996	
+11	3.503358462035887	-87	1211	22.286648712678712	-1	415024	
+10	3.6662775624885473	-76	1433	22.240186962961083	-1	446590	
+2	3.9704841958240134	-41	1402	21.75447064285843	0	399535	
+5	4.882929686448057	-65	1347	24.622303494136165	-1	450046	
+4	5.130058483308273	-65	1731	25.557610322825077	0	438141	
+1	5.427212232102276	-85	1356	24.964483433802993	0	436336	
+8	5.748435823806686	-712	2119	26.54177915898658	0	466764	
+3	7.1250297037769625	-64	1544	27.51136879524036	0	447896	
+7	7.633713829131769	-32	1365	29.30574479749411	0	465573	
+6	8.295776629518434	-981	1505	31.24670854621156	0	448333	
+12	8.395403186038035	-1370	1952	31.633164165625217	0	427125	
+
+
+-- Summary Statistics for different weeks for 1997
+SELECT DayOfWeek, AVG(DepDelay) AS average_departure_delay_1997,
+        MIN(DepDelay) AS min_departure_delay_1997,
+        MAX(DepDelay) AS max_departure_delay_1997,
+        stddev_pop(DepDelay) AS std_departure_delay_1997,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_1997,
+        COUNT(*) AS flight_amount_1997
+FROM airline_1997
+GROUP BY DayOfWeek
+ORDER BY average_departure_delay_1997;
+
+-- In 1997, Tuesday has the lowest, Friday has the highest
+dayofweek	average_departure_delay_1997	min_departure_delay_1997	max_departure_delay_1997	std_departure_delay_1997	50_percent_departure_delay_1997	flight_amount_1997	
+2	6.225012631600656	-75	1435	25.274078444195563	0	791617	
+1	6.9098636823313315	-58	1435	26.09981040170551	0	790298	
+6	7.676083916486349	-61	1618	30.83625535820667	0	706198	
+3	7.9145451097822175	-66	1437	28.167345485795337	0	802130	
+7	8.84244316046472	-780	1435	28.459562943828878	0	749527	
+4	9.244807312426214	-900	1437	28.716268052261768	0	785731	
+5	10.828244788686446	-918	1435	31.252062270335678	1	786342	
+	
+
+-- Summary Statistics for different weeks for 2002
+SELECT DayOfWeek, AVG(DepDelay) AS average_departure_delay_2002,
+        MIN(DepDelay) AS min_departure_delay_2002,
+        MAX(DepDelay) AS max_departure_delay_2002,
+        stddev_pop(DepDelay) AS std_departure_delay_2002,
+        PERCENTILE(DepDelay, 0.5) AS 50_percent_departure_delay_2002,
+        COUNT(*) AS flight_amount_2002
+FROM airline_2002
+GROUP BY DayOfWeek
+ORDER BY average_departure_delay_2002;
+
+-- In 2002, Saturday has the lowest, Friday has the highest.
+dayofweek	average_departure_delay_2002	min_departure_delay_2002	max_departure_delay_2002	std_departure_delay_2002	50_percent_departure_delay_2002	flight_amount_2002	
+6	4.1641259698767685	-70	1402	23.859510699514267	-1	674222	
+2	4.517299851512916	-74	2119	25.99624826750649	-1	780556	
+3	4.527705804090039	-630	1356	24.457298584647138	-1	769799	
+1	5.7620393341995255	-1005	1731	26.875561406009822	0	774285	
+7	5.823570196363276	-712	1544	25.86069943159135	0	732350	
+4	6.526975226886402	-981	1505	27.820195645632936	0	768973	
+5	7.2577796076138075	-1370	1366	27.16304019280678	0	771174	
+	
+
+
+-- CRSDepTime shows the leading 0 of the time will be omitted, which means if the length is 4, the first two number is the hour,
+-- if the length is 3, the first number is the hour, if the lengh is 2 or 1, the hour is 0.
+
+
+-- Summary Statistics for different hours for 1997
+SELECT t1.hour_sub AS hours, AVG(depdelay) AS average_departure_delay_1997, COUNT(*) AS flight_amount_1997
+FROM
+(SELECT *, CASE WHEN LENGTH(crsdeptime) == 4 AND SUBSTR(crsdeptime, 0, 2) == '24' THEN '0'
+                WHEN LENGTH(crsdeptime) == 4 THEN SUBSTR(crsdeptime, 0, 2)
+                WHEN LENGTH(crsdeptime) == 3 THEN SUBSTR(crsdeptime, 0, 1)
+                ELSE '0' END AS hour_sub
+
+FROM airline_1997) t1
+GROUP BY t1.hour_sub
+ORDER BY average_departure_delay_1997;
+
+-- 3am has the lowest, 8pm has the highest, has 25 time, need further dig into
+hours	average_departure_delay_1997	flight_amount_1997	
+3	0.8964912280701754	576	
+5	1.7207078264263873	15651	
+6	2.1950476323900254	290158	
+2	2.2290450618725193	4327	
+7	2.9992141505123686	389744	
+8	4.495227862547474	380118	
+1	4.617223580548764	14893	
+9	5.415265526019774	344313	
+10	5.827099968215135	318096	
+11	6.971088424650192	323674	
+12	7.275257741019714	348052	
+13	7.824248786325691	346396	
+23	8.27622315863844	39956	
+14	8.525079986597728	309996	
+15	9.679252936079205	331397	
+22	9.800224951282352	77382	
+16	10.190945933314639	305507	
+0	10.226773067965949	130480	
+21	11.51741204210728	169319	
+17	11.612419932689177	375200	
+18	12.620466792837735	338240	
+19	13.872239548937047	266565	
+20	13.9519327462081	291803	
+
+
+-- Summary Statistics for different hours for 2002
+SELECT t1.hour_sub AS hours, AVG(depdelay) AS average_departure_delay_2002, COUNT(*) AS flight_amounts_2002
+FROM
+(SELECT *, CASE WHEN LENGTH(crsdeptime) == 4 THEN SUBSTR(crsdeptime, 0, 2)
+                WHEN LENGTH(crsdeptime) == 3 THEN SUBSTR(crsdeptime, 0, 1)
+                ELSE '00' END AS hour_sub
+
+FROM airline_2002) t1
+GROUP BY t1.hour_sub
+ORDER BY average_departure_delay_2002;
+
+-- 5am is the lowest, 7pm is the highest
+hours	average_departure_delay_2002	flight_amounts	
+5	-0.2173970724804316	23058	
+6	0.20183776830415293	313582	
+1	1.0474943251265934	5751	
+7	1.1026031742594837	373545	
+2	1.4024767801857585	974	
+00	1.468313641245972	9369	
+8	2.124770514155653	376624	
+9	2.7880772135867744	355969	
+10	3.398574411169831	310390	
+11	4.137818274915049	347752	
+12	4.593904961105497	344476	
+23	4.651813002301626	26647	
+13	5.387186256560123	347822	
+22	6.017598715737013	84173	
+14	6.434958077069446	330007	
+15	7.400502689938898	332989	
+16	8.062227522562035	309075	
+21	9.11568390688938	150652	
+17	9.131855300194871	393440	
+18	9.353000736675742	312513	
+20	10.100456787037247	222695	
+19	10.312001920469568	299856	
+
+
+-- Summary Statistics for different carriers for 1997
+SELECT 
+t2.description, t2.code AS carrier_code, AVG(t1.depdelay) AS average_departure_delay_1997, COUNT(*) AS flight_amount_1997
+FROM airline_1997 t1
+JOIN
+(SELECT regexp_replace(code, '"', '') AS code, regexp_replace(description, '"', '') AS description
+FROM carrier) t2
+ON t1.uniquecarrier = t2.code
+GROUP BY t2.code, t2.description
+ORDER BY average_departure_delay_1997;
+
+-- US Airways Inc is the lowest.
+t2.description	carrier_code	average_departure_delay_1997	flight_amount_1997	
+US Airways Inc. (Merged with America West 9/05. Reporting for both starting 10/07.)	US	6.149228086626542	718751	
+Trans World Airways LLC	TW	7.274361421350074	274037	
+American Airlines Inc.	AA	7.348331603827972	663954	
+America West Airlines Inc. (Merged with US Airways 9/05. Stopped reporting 10/07.)	HP	7.780035079616974	206304	
+Continental Air Lines Inc.	CO	7.8443551315152495	403349	
+Alaska Airlines Inc.	AS	8.315839312127622	147750	
+Southwest Airlines Co.	WN	8.565956905219483	794849	
+Delta Air Lines Inc.	DL	8.746709363544165	921850	
+Northwest Airlines Inc.	NW	9.37119100351306	537152	
+United Air Lines Inc.	UA	9.92140223940136	743847	
+
+
+
+
+-- Summary Statistics for different carriers for 2002
+SELECT 
+t2.description, t2.code AS carrier_code, AVG(t1.depdelay) AS average_departure_delay_2002, COUNT(*) AS flight_amount_2002
+FROM airline_2002 t1
+JOIN
+(SELECT regexp_replace(code, '"', '') AS code, regexp_replace(description, '"', '') AS description
+FROM carrier) t2
+ON t1.uniquecarrier = t2.code
+GROUP BY t2.code, t2.description
+ORDER BY average_departure_delay_2002;
+
+-- continent air is the lowest.
+t2.description	t2.code	average_departure_delay_2002	flight_amount	
+Continental Air Lines Inc.	CO	2.5368067195762296	325246	
+US Airways Inc. (Merged with America West 9/05. Reporting for both starting 10/07.)	US	3.676496743288962	511664	
+American Airlines Inc.	AA	4.473949298662345	852439	
+United Air Lines Inc.	UA	4.664783588934704	587887	
+Northwest Airlines Inc.	NW	4.82061634414722	513331	
+American Eagle Airlines Inc.	MQ	5.546236367849778	439984	
+Delta Air Lines Inc.	DL	5.5655362269371285	728758	
+America West Airlines Inc. (Merged with US Airways 9/05. Stopped reporting 10/07.)	HP	6.269212934339063	196111	
+Alaska Airlines Inc.	AS	7.35249066762614	159194	
+Southwest Airlines Co.	WN	8.92502960886713	956745	
+
+
+DROP TABLE IF EXISTS airport;
+CREATE TABLE airport (iata STRING, airport STRING, city STRING, state STRING,
+                        country STRING, lat FLOAT, long FLOAT
+                           )
+ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ','
+    tblproperties("skip.header.line.count"="1");
+
+LOAD DATA INPATH '/user/chunlei2/final_proj/airports.csv'
+OVERWRITE INTO TABLE airport;
+
+-- January delay by country
+SELECT
+country, AVG(DepDelay) AS average_departure_delay_1997, COUNT(*) AS flight_amount_1997
+FROM airline_1997 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t1.month = '1'
+GROUP BY t2.country;
+
+country	average_departure_delay_1997	flight_amount_1997	
+USA	11.864794628339997	459123	
+	
+
+-- January delay by state
+SELECT
+t2.state AS state, AVG(DepDelay) AS average_departure_delay_1997, COUNT(*) AS flight_amount_1997
+FROM airline_1997 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t1.month = '1' AND t2.country = 'USA'
+GROUP BY t2.state
+ORDER BY average_departure_delay_1997 DESC;
+
+-- whole year delay by state
+SELECT
+t2.state AS state, AVG(DepDelay) AS average_departure_delay_1997, COUNT(*) AS flight_amount_1997
+FROM airline_1997 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t2.country = 'USA'
+GROUP BY t2.state
+ORDER BY average_departure_delay_1997 DESC;
+
+-- June delay by state
+SELECT
+t2.state AS state, AVG(DepDelay) AS average_departure_delay_2002, COUNT(*) AS flight_amount_2002
+FROM airline_2002 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t1.month = '6' AND t2.country = 'USA'
+GROUP BY t2.state
+ORDER BY average_departure_delay_2002 DESC;
+
+SELECT
+t2.state AS state, AVG(DepDelay) AS average_departure_delay_2002, COUNT(*) AS flight_amount_2002
+FROM airline_2002 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t1.month = '12' AND t2.country = 'USA'
+GROUP BY t2.state
+ORDER BY average_departure_delay_2002 DESC;
+
+SELECT
+t2.state AS state, AVG(DepDelay) AS average_departure_delay_2002, COUNT(*) AS flight_amount_2002
+FROM airline_2002 t1
+LEFT JOIN
+(SELECT regexp_replace(iata, '"', '') AS iata, regexp_replace(airport, '"', '') AS airport,
+    regexp_replace(city, '"', '') AS city, regexp_replace(state, '"', '') AS state,
+    regexp_replace(country, '"', '') AS country
+FROM airport) t2
+ON t1.origin = t2.iata
+WHERE t2.country = 'USA'
+GROUP BY t2.state
+ORDER BY average_departure_delay_2002 DESC;
+
+

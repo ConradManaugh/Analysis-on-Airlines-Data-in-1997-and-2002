@@ -1,0 +1,244 @@
+---
+title: "cancellation trend analysis"
+author: "Yunan Shi"
+date: "4/29/2019"
+output: word_document
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(MASS)
+#reference from the code in class
+git_pkgs = git_pkgs_load = c("streamgraph","DT")
+load_pkgs = c(load_pkgs, git_pkgs_load)
+pkgs_loaded = lapply(load_pkgs, require, character.only=T)
+```
+```{r}
+#overview and clean the data in 1997
+setwd("~/Stat480/Final Project")
+data_1997<-read.csv("1997.csv", header = TRUE)
+cancelled <- data_1997[,"Cancelled"] == 1
+cancel97 <- data_1997[cancelled,]
+```
+```{r}
+#overview and clean the data in 2002
+setwd("~/Stat480/Final Project")
+data_2002<-read.csv("2002.csv", header = TRUE)
+cancelled <- data_2002[,"Cancelled"] == 1
+cancel02 <- data_2002[cancelled,]
+```
+
+
+```{r}
+#Same order in the analysis report
+#cancellation by month in 1997
+cancel97 %>% 
+  group_by(Month) %>% 
+  tally() -> month
+month1 = ggplot(data = month, aes(x = Month, y = n, group = 1)) +
+  geom_line(color = " light blue")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each month ")+
+  scale_x_discrete(limits = c("1","2","3","4","5","6","7","8","9","10","11","12"))+
+  labs(title = "Cancellation by Month in 1997")
+month1
+```
+```{r}
+#cancellation by month in 2002
+cancel02 %>% 
+  group_by(Month) %>% 
+  tally() -> month
+month2 = ggplot(data = month, aes(x = Month, y = n, group = 1)) +
+  geom_line(color = "orange")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each month ")+
+  scale_x_discrete(limits = c("1","2","3","4","5","6","7","8","9","10","11","12"))+
+  labs(title = "Cancellation by Month in 2002")
+```
+```{r}
+#Combine the month trend grah in a line for 1997 & 2002
+library(gridExtra)
+grid.arrange(month1,month2,ncol = 2)
+```
+
+```{r}
+#Cancellation by day of week in 1997
+cancel97 %>% 
+  group_by(DayOfWeek) %>% 
+  tally() -> dayofweek
+dayofweek1 = ggplot(data = dayofweek, aes(x = DayOfWeek, y = n, group = 1)) +
+  geom_line(color = "light blue")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each day in week ")+
+  scale_x_discrete(limits = c("1","2","3","4","5","6","7"))+
+  labs(title = "DayofWeek in 1997")
+```
+```{r}
+#Cancellation by day of week in 2002
+cancel02 %>% 
+  group_by(DayOfWeek) %>% 
+  tally() -> dayofweek
+dayofweek2 = ggplot(data = dayofweek, aes(x = DayOfWeek, y = n, group = 1)) +
+  geom_line(color = "orange")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each day of week ")+
+  scale_x_discrete(limits = c("1","2","3","4","5","6","7"))+
+  labs(title = "DayofWeek in 2002")
+```
+```{r}
+#Combine the day of week trend grah in a line for 1997 & 2002
+library(gridExtra)
+grid.arrange(dayofweek1,dayofweek2,ncol = 2)
+```
+
+```{r}
+# Cancellations by state in 1997
+airports <- read.csv("airports.csv")
+comb <- merge(cancel97,airports,by.x = "Origin",by.y = "iata")
+comb %>%
+  group_by(Year, Month, state) %>% 
+  tally() -> origin
+origin$Month <- paste(origin$Year,origin$Month,"01",sep="-" )
+streamgraph(origin, "state", "n", "Month") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "month", tick_interval = 1, tick_format = "%m")%>%
+  sg_title('Cancellation by state in 1997')
+```
+```{r}
+# Cancellations by state in 2002
+airports <- read.csv("airports.csv")
+comb <- merge(cancel02,airports,by.x = "Origin",by.y = "iata")
+comb %>%
+  group_by(Year, Month, state) %>% 
+  tally() -> origin
+origin$Month <- paste(origin$Year,origin$Month,"01",sep="-" )
+streamgraph(origin, "state", "n", "Month") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "month", tick_interval = 1, tick_format = "%m")%>%
+  sg_title('Cancellation by state in 2002')
+```
+
+
+
+```{r}
+# cancellation by carrier in 1997
+cancel97 %>% 
+  group_by(UniqueCarrier) %>% 
+  tally() -> carrier
+q1 = ggplot(data = carrier, aes(x = UniqueCarrier, y = n, group = 1)) +
+  geom_line(color = "light blue")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each carrier ")+
+  labs(title = "Cancellation by carrier in 1997")
+q1
+```
+```{r}
+# cancellation by carrier in 2002
+cancel02 %>% 
+  group_by(UniqueCarrier) %>% 
+  tally() -> carrier
+q2 = ggplot(data = carrier, aes(x = UniqueCarrier, y = n, group = 1)) +
+  geom_line(color = "orange")+
+  geom_point(size = 1)+
+  ylab("amount of cancellation each carrier ")+
+  labs(title = "Cancellation by carrier in 2002")
+q2
+```
+```{r}
+#Combine the carrier trend grah in a line for 1997 & 2002
+library(gridExtra)
+grid.arrange(q1,q2,ncol = 2)
+```
+
+
+```{r}
+#Cancellation by carrier percentage in 1997
+data_1997 %>% 
+  group_by(UniqueCarrier) %>% 
+  tally() -> totalcarrier
+proportion <- carrier
+proportion[,"n"] <- proportion[,"n"]/totalcarrier[,"n"]
+q3 = ggplot(data = proportion, aes(x = UniqueCarrier, y = n, group = 1)) +
+  geom_line(color = "light blue")+
+  geom_point(size = 1)+
+  ylab("percentage of cancellation each carrier ")+
+  labs(title = "Carrier precentage in 1997")
+q3
+```
+```{r}
+# Cancellation by carrier proportion in 2002
+data_2002 %>% 
+  group_by(UniqueCarrier) %>% 
+  tally() -> totalcarrier
+proportion <- carrier
+proportion[,"n"] <- proportion[,"n"]/totalcarrier[,"n"]
+q4 = ggplot(data = proportion, aes(x = UniqueCarrier, y = n, group = 1)) +
+  geom_line(color = "orange")+
+  geom_point(size = 1)+
+  ylab("percentage of cancellation each carrier ")+
+  labs(title = "Carrier precentage in 2002")
+q4
+```
+```{r}
+#Combine the carrier percentage trend grah in a line for 1997 & 2002
+library(gridExtra)
+grid.arrange(q3,q4,ncol = 2)
+```
+
+
+
+```{r}
+#Comparison between 1997 & 2002 in streamgraoh
+cancel97 %>%
+  group_by(Year, Month, UniqueCarrier) %>% 
+  tally() %>%
+  ungroup -> data_carrier
+data_carrier$Month <- paste(data_carrier$Year,data_carrier$Month,"01",sep="-" )
+compare1 = streamgraph(data_carrier, "UniqueCarrier", "n", "Month") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "month", tick_interval = 1, tick_format = "%m")%>%
+  sg_title('Cancellation by carrier in 1997')
+```
+```{r}
+cancel02 %>%
+  group_by(Year, Month, UniqueCarrier) %>% 
+  tally() %>%
+  ungroup -> data_carrier
+data_carrier$Month <- paste(data_carrier$Year,data_carrier$Month,"01",sep="-" )
+compare2 = streamgraph(data_carrier, "UniqueCarrier", "n", "Month") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "month", tick_interval = 1, tick_format = "%m")%>%
+  sg_title('Cancellation by carrier in 2002')
+```
+
+```{r}
+#Streamgrah for special case analysis in January 1997
+jan97 <- cancel97[cancel97$Month == 1,]
+jan97 %>%
+  group_by(DayofMonth, UniqueCarrier) %>% 
+  tally() %>%
+  ungroup -> groupjan97
+groupjan97$DayofMonth <- paste("1997","1",groupjan97$DayofMonth,sep="-" )
+streamgraph(groupjan97, "UniqueCarrier","n","DayofMonth") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "day", tick_interval = 1, tick_format = "%d")%>%
+  sg_title('case analysis in January,1997')
+```
+
+
+```{r}
+#Streamgrah for special case analysis in June 2002
+june02 <- cancel02[cancel02$Month == 6,]
+june02 %>%
+  group_by(DayofMonth, UniqueCarrier) %>% 
+  tally() %>%
+  ungroup -> groupjune02
+groupjune02$DayofMonth <- paste("2002","1",groupjune02$DayofMonth,sep="-" )
+streamgraph(groupjune02, "UniqueCarrier", "n", "DayofMonth") %>%
+  sg_fill_brewer("Spectral") %>%
+  sg_axis_x(tick_units = "day", tick_interval = 1, tick_format = "%d")%>%
+  sg_title('special case in June,2002')
+```
+
+
